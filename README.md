@@ -1,6 +1,6 @@
 # Imod Container
 
-Docker image to run [SegmentAnything for Microscopy](https://bio3d.colorado.edu/imod/](https://github.com/computational-cell-analytics/micro-sam)
+Docker image to run [SegmentAnything for Microscopy](https://github.com/computational-cell-analytics/micro-sam)
 
 There may be some graphics drivers that are required on the host machine to run this correctly.
 
