@@ -1,29 +1,46 @@
 
 # Build with:
-# sudo docker build . -t sydneyinformaticshub/imod:11.4-centos7
+# sudo docker build . -t sydneyinformaticshub/micro-sam
 
 # Run with e.g.:
 # xhost +
-# sudo docker run --gpus all --device /dev/dri/ -it --rm  -e DISPLAY=unix$DISPLAY  -v ~/PROJECTS/imod/:/project -v /tmp/.X11-unix:/tmp/.X11-unix  -e QT_X11_NO_MITSHM=1  sydneyinformaticshub/imod:11.4-centos7
-# imod
+# sudo docker run --gpus all --device /dev/dri/ -it --rm  -e DISPLAY=unix$DISPLAY  -v ~/DATA/:/project -v /tmp/.X11-unix:/tmp/.X11-unix  -e QT_X11_NO_MITSHM=1  sydneyinformaticshub/micro-sam
+# micro_sam.annotator_2d -i /project/test.jpeg
 
-FROM nvidia/cudagl:11.4.2-devel-centos7
+# Pull base image.
+FROM nvidia/cuda:11.7.0-devel-ubuntu18.04
+MAINTAINER Nathaniel Butterworth USYD SIH
 
-RUN yum -y update && yum clean all && yum -y makecache \
-  && yum -y groupinstall "Development Tools" \
-  &&  yum -y install epel-release python3 tcsh java-1.8.0-openjdk wget libxkbcommon-x11
+# Set up ubuntu dependencies
+RUN apt-get update -y && \
+  apt-get install -y wget git build-essential git curl libgl1 libglib2.0-0 libsm6 libxrender1 libxext6 && \
+  rm -rf /var/lib/apt/lists/*
 
-# Link python3 so imod can find it
-RUN mkdir /opt/bin
-ENV PATH=/opt/bin/:$PATH
-RUN ln -s /usr/bin/python3 /opt/bin/python
+# Make the dir everything will go in
+WORKDIR /build
 
-WORKDIR /project
-# The download is slow, so just add it in
-# RUN wget https://bio3d.colorado.edu/ftp/latestIMOD/RHEL7-64_CUDA10.1/imod_4.12.40_RHEL7-64_CUDA10.1.sh
-ADD imod_4.12.40_RHEL7-64_CUDA10.1.sh /project/
-RUN sh imod_4.12.40_RHEL7-64_CUDA10.1.sh -yes
+# Intall anaconda
+ENV PATH="/build/miniconda3/bin:${PATH}"
+ARG PATH="/build/miniconda3/bin:${PATH}"
+RUN curl -o miniconda.sh https://repo.anaconda.com/miniconda/Miniconda3-py38_4.12.0-Linux-x86_64.sh &&\
+	mkdir /build/.conda && \
+	bash miniconda.sh -b -p /build/miniconda3 &&\
+	rm -rf miniconda.sh
 
-RUN mkdir /scratch && touch /usr/bin/nvidia-smi
+RUN conda --version
 
-RUN yum -y install libGLU glx-utils mesa-dri-drivers
+RUN conda install mamba -n base -c conda-forge
+RUN mamba install napari python-elf pytorch pytorch-cuda>=11.7 torchvision tqdm pip -c pytorch -c nvidia -c conda-forge
+RUN pip install git+https://github.com/facebookresearch/segment-anything.git
+
+RUN git clone https://github.com/computational-cell-analytics/micro-sam && cd micro-sam \
+  && pip install -e .
+
+RUN conda clean -a -y
+RUN pip cache purge
+
+RUN mkdir /project /scratch && touch /usr/bin/nvidia-smi
+
+CMD /bin/bash
+#
+
